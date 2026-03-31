@@ -1,0 +1,4 @@
+[
+  {"emission_id":1,"user_id":1,"vehicle_make":"Tata","vehicle_model":"Ace","vehicle_year":2022,"distance_km":100,"emission_kg":21.0,"calculated_at":"2026-02-09T10:20:30"},
+  {"emission_id":2,"user_id":1,"vehicle_make":"Volvo","vehicle_model":"FH16","vehicle_year":2021,"distance_km":200,"emission_kg":42.0,"calculated_at":"2026-02-09T11:00:00"}
+]
