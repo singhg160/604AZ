@@ -1,0 +1,281 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Carbon Footprint Full Stack (Port 3001)
+
+Parameters:
+  StudentNumber:
+    Type: String
+
+  BackendImage:
+    Type: String
+
+Resources:
+
+# ------------------------
+# 🌐 VPC
+# ------------------------
+
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+
+# ------------------------
+# 🌍 SUBNETS
+# ------------------------
+
+  PublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.0.1.0/24
+      MapPublicIpOnLaunch: true
+      AvailabilityZone: eu-west-2a
+
+  PrivateSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.0.2.0/24
+
+# ------------------------
+# 🌐 INTERNET + NAT
+# ------------------------
+
+  IGW:
+    Type: AWS::EC2::InternetGateway
+
+  AttachIGW:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref IGW
+
+  EIP:
+    Type: AWS::EC2::EIP
+
+  NAT:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt EIP.AllocationId
+      SubnetId: !Ref PublicSubnet
+
+# ------------------------
+# 📡 ROUTING
+# ------------------------
+
+  PublicRT:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+
+  PublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: AttachIGW
+    Properties:
+      RouteTableId: !Ref PublicRT
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref IGW
+
+# ------------------------
+# 🔐 SECURITY GROUPS
+# ------------------------
+
+  ALBSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: ALB SG
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+
+  ECSSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: ECS SG
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 3001
+          ToPort: 3001
+          SourceSecurityGroupId: !Ref ALBSG
+
+# ------------------------
+# 🖥️ EC2 (Docker + Node)
+# ------------------------
+
+  EC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t2.micro
+      ImageId: ami-0c02fb55956c7d316
+      SubnetId: !Ref PublicSubnet
+      SecurityGroupIds:
+        - !Ref ALBSG
+      UserData:
+        Fn::Base64: |
+          #!/bin/bash
+          yum update -y
+          amazon-linux-extras install docker -y
+          service docker start
+          usermod -a -G docker ec2-user
+          curl -sL https://rpm.nodesource.com/setup_18.x | bash -
+          yum install -y nodejs git
+
+# ------------------------
+# 🪣 S3
+# ------------------------
+
+  AppBucket:
+    Type: AWS::S3::Bucket
+
+# ------------------------
+# 🗄️ RDS POSTGRES
+# ------------------------
+
+  RDSSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: RDS SG
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 5432
+          ToPort: 5432
+          SourceSecurityGroupId: !Ref ECSSG
+
+  DBSubnet:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: RDS Subnet
+      SubnetIds:
+        - !Ref PrivateSubnet
+
+  DB:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      Engine: postgres
+      DBInstanceClass: db.t3.micro
+      AllocatedStorage: 20
+      MasterUsername: postgres
+      MasterUserPassword: password123
+      DBName: carbondb
+      VPCSecurityGroups:
+        - !Ref RDSSG
+      DBSubnetGroupName: !Ref DBSubnet
+      PubliclyAccessible: false
+
+# ------------------------
+# ⚖️ ALB
+# ------------------------
+
+  ALB:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Subnets:
+        - !Ref PublicSubnet
+      SecurityGroups:
+        - !Ref ALBSG
+
+  TG:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Port: 3001
+      Protocol: HTTP
+      VpcId: !Ref VPC
+      TargetType: ip
+
+  Listener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref ALB
+      Port: 80
+      Protocol: HTTP
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref TG
+
+# ------------------------
+# 🐳 ECS
+# ------------------------
+
+  Cluster:
+    Type: AWS::ECS::Cluster
+
+  TaskRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+
+  Task:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Cpu: 256
+      Memory: 512
+      NetworkMode: awsvpc
+      RequiresCompatibilities: [FARGATE]
+      ExecutionRoleArn: !Ref TaskRole
+      ContainerDefinitions:
+        - Name: backend
+          Image: !Ref BackendImage
+          PortMappings:
+            - ContainerPort: 3001
+          Environment:
+            - Name: DB_HOST
+              Value: !GetAtt DB.Endpoint.Address
+            - Name: DB_USER
+              Value: postgres
+            - Name: DB_PASS
+              Value: password123
+            - Name: DB_NAME
+              Value: carbondb
+
+  Service:
+    Type: AWS::ECS::Service
+    DependsOn: Listener
+    Properties:
+      Cluster: !Ref Cluster
+      LaunchType: FARGATE
+      DesiredCount: 1
+      TaskDefinition: !Ref Task
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          Subnets:
+            - !Ref PrivateSubnet
+          SecurityGroups:
+            - !Ref ECSSG
+      LoadBalancers:
+        - ContainerName: backend
+          ContainerPort: 3001
+          TargetGroupArn: !Ref TG
+
+# ------------------------
+# 🔐 COGNITO
+# ------------------------
+
+  UserPool:
+    Type: AWS::Cognito::UserPool
+
+  Client:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId: !Ref UserPool
+
+# ------------------------
+# OUTPUT
+# ------------------------
+
+Outputs:
+  URL:
+    Value: !GetAtt ALB.DNSName
