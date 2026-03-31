@@ -1,27 +1,27 @@
-name: AWS Deploy
+name: Deploy VPC
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      
-      - name: Configure AWS Credentials
+      - name: Checkout Repo
+        uses: actions/checkout@v2
+      - name: Setup AWS CLi
         uses: aws-actions/configure-aws-credentials@v2
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: eu-west-2
-
-      - name: Deploy to CloudFormation
-        uses: aws-actions/aws-cloudformation-github-deploy@v1
-        with:
-           name: CarbonFootprintStack
-          template: template.yaml
-          no-fail-on-empty-changeset: "1"
-          capabilities: CAPABILITY_NAMED_IAM
-          parameter-overrides: |
-            StudentNumber=${{ secrets.STUDENT_ID }},
-            BackendImage=public.ecr.aws/docker/library/node:latest
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_ID }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: us-east-1
+      - name: Deploy Stack
+        id: deploy_stack
+        run: | 
+          aws cloudformation deploy --stack-name test --template-file test.yaml
+      - name: Echo Stack Outputs
+        run: |
+          # Parse the output values and print them
+          echo "Stack Outputs:"
+          aws cloudformation describe-stacks --stack-name test --query "Stack[0].Outputs" --output text
