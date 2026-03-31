@@ -33,11 +33,26 @@ Resources:
       MapPublicIpOnLaunch: true
       AvailabilityZone: us-east-1a
 
+  PublicSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.0.4.0/24
+
+    
+
   PrivateSubnet:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId: !Ref VPC
       CidrBlock: 10.0.2.0/24
+
+  PrivateSubnet2:
+  Type: AWS::EC2::Subnet
+  Properties:
+    VpcId: !Ref VPC
+    CidrBlock: 10.0.3.0/24
+    AvailabilityZone: us-east-1b
 
 # ------------------------
 # 🌐 INTERNET + NAT
@@ -112,7 +127,7 @@ Resources:
     Type: AWS::EC2::Instance
     Properties:
       InstanceType: t2.micro
-      ImageId: ami-0c02fb55956c7d316
+      ImageId: ami-0e86e20dae9224db8
       SubnetId: !Ref PublicSubnet
       SecurityGroupIds:
         - !Ref ALBSG
@@ -154,6 +169,7 @@ Resources:
       DBSubnetGroupDescription: RDS Subnet
       SubnetIds:
         - !Ref PrivateSubnet
+        - !Ref PrivateSubnet2
 
   DB:
     Type: AWS::RDS::DBInstance
@@ -162,7 +178,7 @@ Resources:
       DBInstanceClass: db.t3.micro
       AllocatedStorage: 20
       MasterUsername: postgres
-      MasterUserPassword: password123
+      MasterUserPassword: Gurkirat123!
       DBName: carbondb
       VPCSecurityGroups:
         - !Ref RDSSG
@@ -206,17 +222,6 @@ Resources:
   Cluster:
     Type: AWS::ECS::Cluster
 
-  TaskRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: ecs-tasks.amazonaws.com
-            Action: sts:AssumeRole
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
 
   Task:
     Type: AWS::ECS::TaskDefinition
@@ -225,7 +230,7 @@ Resources:
       Memory: 512
       NetworkMode: awsvpc
       RequiresCompatibilities: [FARGATE]
-      ExecutionRoleArn: !Ref TaskRole
+      ExecutionRoleArn: arn:aws:iam::891377043411:role/LabRole
       ContainerDefinitions:
         - Name: backend
           Image: !Ref BackendImage
