@@ -19,7 +19,7 @@ jobs:
       - name: Deploy Stack
         id: deploy_stack
         run: | 
-          aws cloudformation deploy --stack-name test --template-file test.yaml
+          aws cloudformation deploy --stack-name test --template-file template.yml
       - name: Echo Stack Outputs
         run: |
           # Parse the output values and print them
