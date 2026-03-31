@@ -18,7 +18,10 @@ jobs:
       - name: Deploy to CloudFormation
         uses: aws-actions/aws-cloudformation-github-deploy@v1
         with:
-          name: CarbonFootprintStack
+           name: CarbonFootprintStack
           template: template.yaml
+          no-fail-on-empty-changeset: "1"
           capabilities: CAPABILITY_NAMED_IAM
-          parameter-overrides: "StudentNumber=123,BackendImage=my-image-url" 1
+          parameter-overrides: |
+            StudentNumber=${{ secrets.STUDENT_ID }},
+            BackendImage=public.ecr.aws/docker/library/node:latest
