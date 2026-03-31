@@ -21,4 +21,4 @@ jobs:
           name: CarbonFootprintStack
           template: template.yaml
           capabilities: CAPABILITY_NAMED_IAM
-          parameter-overrides: "StudentNumber=123,BackendImage=my-image-url"
+          parameter-overrides: "StudentNumber=123,BackendImage=my-image-url" 1
