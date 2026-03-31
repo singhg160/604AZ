@@ -22,7 +22,7 @@ jobs:
         uses: aws-actions/aws-cloudformation-github-deploy@v1
         with:
           name: CarbonFootprintStack
-          template: src/infra/template.yml
+          template: template.yml
           no-fail-on-empty-changeset: "1" # FIXES THE 255 ERROR
           capabilities: CAPABILITY_NAMED_IAM
           parameter-overrides: |
