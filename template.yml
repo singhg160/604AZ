@@ -134,6 +134,7 @@ Resources:
     Properties:
       Cluster: !Ref Cluster
       LaunchType: FARGATE
+      TaskDefinition: !Ref Task
       DesiredCount: 1
       NetworkConfiguration:
         AwsvpcConfiguration:
@@ -147,6 +148,20 @@ Resources:
         - ContainerName: backend
           ContainerPort: 3001
           TargetGroupArn: !Ref TG
+
+  Task:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Cpu: 256
+      Memory: 512
+      NetworkMode: awsvpc
+      RequiresCompatibilities: [FARGATE]
+      ExecutionRoleArn: arn:aws:iam::891377043411:role/LabRole
+      ContainerDefinitions:
+        - Name: backend
+          Image: public.ecr.aws/docker/library/node:latest
+          PortMappings:
+            - ContainerPort: 3001
 
   # RDS SG
   RDSSG:
@@ -184,20 +199,6 @@ Resources:
         - !Ref PrivateSubnet1
         - !Ref PrivateSubnet2
 
-# DB
-  DB:
-    Type: AWS::RDS::DBInstance
-    Properties:
-      Engine: postgres
-      DBInstanceClass: db.t3.micro
-      AllocatedStorage: 20
-      MasterUsername: postgres
-      MasterUserPassword: Password123!
-      DBName: carbondb
-      VPCSecurityGroups:
-        - !Ref RDSSG
-      DBSubnetGroupName: !Ref DBSubnet
-      PubliclyAccessible: false
 
 
   Bucket:
