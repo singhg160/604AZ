@@ -209,16 +209,40 @@ Resources:
           TargetGroupArn: !Ref TG
 
 # Service
+  Cluster:
+    Type: AWS::ECS::Cluster
+
+  Task:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Cpu: 256
+      Memory: 512
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      ExecutionRoleArn: arn:aws:iam::891377043411:role/LabRole
+      ContainerDefinitions:
+        - Name: backend
+          Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/carbon-backend:latest"
+          PortMappings:
+            - ContainerPort: 3001
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: /ecs/carbon
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: ecs
+
   Service:
-  Type: AWS::ECS::Service
-  DependsOn:
-    - Listener
-    - EC2BuildInstance 
-  Properties:
+    Type: AWS::ECS::Service
+    DependsOn:
+      - Listener
+      - EC2BuildInstance
+    Properties:
       Cluster: !Ref Cluster
       LaunchType: FARGATE
-      TaskDefinition: !Ref Task
       DesiredCount: 1
+      TaskDefinition: !Ref Task
       NetworkConfiguration:
         AwsvpcConfiguration:
           Subnets:
@@ -232,27 +256,7 @@ Resources:
           ContainerPort: 3001
           TargetGroupArn: !Ref TG
 
-  Task:
-    Type: AWS::ECS::TaskDefinition
-    Properties:
-      Cpu: 256
-      Memory: 512
-      NetworkMode: awsvpc
-      RequiresCompatibilities: [FARGATE]
-      ExecutionRoleArn: arn:aws:iam::891377043411:role/LabRole
-      ContainerDefinitions:
-        - Name: backend
-          Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/carbon-backend:latest"
-          LogConfiguration:
-             LogDriver: awslogs
-             Options:
-               awslogs-group: /ecs/carbon
-               awslogs-region: !Ref AWS::Region
-               awslogs-stream-prefix: ecs
-          PortMappings:
-            - ContainerPort: 3001
-
-    ECRRepo:
+  ECRRepo:
     Type: AWS::ECR::Repository
     Properties:
       RepositoryName: carbon-backend
