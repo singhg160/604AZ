@@ -238,7 +238,7 @@ Resources:
       ExecutionRoleArn: !Sub "arn:aws:iam::${AWS::AccountId}:role/LabRole" # Dynamic ID is safer
       ContainerDefinitions:
         - Name: backend
-          Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/carbon-backend:latest"
+          Image: public.ecr.aws/docker/library/node:latest
           LogConfiguration:
              LogDriver: awslogs
              Options:
