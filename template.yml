@@ -1,12 +1,7 @@
 
 AWSTemplateFormatVersion: '2010-09-09'
 Description: Step 1 - VPC + ALB
-Parameters:
-  StudentNumber:
-    Type: String
 
-  BackendImage:
-    Type: String
 Resources:
 
 # VPC
