@@ -216,31 +216,34 @@ Resources:
         - ContainerName: backend
           ContainerPort: 3001
           TargetGroupArn: !Ref TG
+# --- Task Definition ---
   Task:
     Type: AWS::ECS::TaskDefinition
     Properties:
-      Cpu: 256
-      Memory: 512
+      Cpu: '256' # Best to wrap numbers in quotes in YAML
+      Memory: '512'
       NetworkMode: awsvpc
-      RequiresCompatibilities: [FARGATE]
-      ExecutionRoleArn: arn:aws:iam::891377043411:role/LabRole
+      RequiresCompatibilities: 
+        - FARGATE
+      ExecutionRoleArn: !Sub "arn:aws:iam::${AWS::AccountId}:role/LabRole" # Dynamic ID is safer
       ContainerDefinitions:
         - Name: backend
           Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/carbon-backend:latest"
           LogConfiguration:
-             LogDriver: awslogs
-             Options:
-               awslogs-group: /ecs/carbon
-               awslogs-region: !Ref AWS::Region
-               awslogs-stream-prefix: ecs
+            LogDriver: awslogs
+            Options:
+              awslogs-group: /ecs/carbon
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: ecs
           PortMappings:
             - ContainerPort: 3001
 
-    ECRRepo:
+  # --- ECR Repository (Fixed Indentation) ---
+  ECRRepo:
     Type: AWS::ECR::Repository
     Properties:
-      RepositoryName: carbon-backend
-
+      RepositoryName: carbon-repo # "deploy" is a bit vague, changed for clarity
+      
   # RDS SG
   RDSSG:
     Type: AWS::EC2::SecurityGroup
