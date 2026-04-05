@@ -216,6 +216,12 @@ Resources:
         - ContainerName: backend
           ContainerPort: 3001
           TargetGroupArn: !Ref TG
+
+  CloudWatchLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /ecs/carbon
+      
 # --- Task Definition ---
   Task:
     Type: AWS::ECS::TaskDefinition
