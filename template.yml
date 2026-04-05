@@ -291,7 +291,3 @@ Resources:
     Type: AWS::Cognito::UserPoolClient
     Properties:
       UserPoolId: !Ref UserPool
-
-Outputs:
-  URL:
-    Value: !GetAtt ALB.DNSName
