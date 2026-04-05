@@ -1,15 +1,11 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: Full Stack - VPC, ALB, ECR, and ECS Fargate
-
-Parameters:
-  StudentNumber:
-    Type: String
-  BackendImage:
-    Type: String
-    Default: "public.ecr.aws/docker/library/node:latest"
+Description: Carbon App Full Stack (Auto Build + ECS)
 
 Resources:
-  # --- 1. Networking Layer ---
+
+# ------------------------
+# VPC
+# ------------------------
   VPC:
     Type: AWS::EC2::VPC
     Properties:
@@ -17,80 +13,93 @@ Resources:
       EnableDnsSupport: true
       EnableDnsHostnames: true
 
-  InternetGateway:
-    Type: AWS::EC2::InternetGateway
-
-  GatewayAttachment:
-    Type: AWS::EC2::VPCGatewayAttachment
-    Properties:
-      VpcId: !Ref VPC
-      InternetGatewayId: !Ref InternetGateway
-
+# ------------------------
+# SUBNETS
+# ------------------------
   PublicSubnet1:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId: !Ref VPC
       CidrBlock: 10.0.1.0/24
-      AvailabilityZone: us-east-1a
       MapPublicIpOnLaunch: true
+      AvailabilityZone: us-east-1a
 
   PublicSubnet2:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId: !Ref VPC
       CidrBlock: 10.0.2.0/24
-      AvailabilityZone: us-east-1b
       MapPublicIpOnLaunch: true
+      AvailabilityZone: us-east-1b
 
-  PublicRouteTable:
+# ------------------------
+# INTERNET + ROUTING
+# ------------------------
+  IGW:
+    Type: AWS::EC2::InternetGateway
+
+  Attach:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref IGW
+
+  RT:
     Type: AWS::EC2::RouteTable
     Properties:
       VpcId: !Ref VPC
 
-  PublicRoute:
+  Route:
     Type: AWS::EC2::Route
-    DependsOn: GatewayAttachment
+    DependsOn: Attach
     Properties:
-      RouteTableId: !Ref PublicRouteTable
+      RouteTableId: !Ref RT
       DestinationCidrBlock: 0.0.0.0/0
-      GatewayId: !Ref InternetGateway
+      GatewayId: !Ref IGW
 
-  Subnet1Assoc:
+  Assoc1:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
       SubnetId: !Ref PublicSubnet1
-      RouteTableId: !Ref PublicRouteTable
+      RouteTableId: !Ref RT
 
-  Subnet2Assoc:
+  Assoc2:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
       SubnetId: !Ref PublicSubnet2
-      RouteTableId: !Ref PublicRouteTable
+      RouteTableId: !Ref RT
 
-  # --- 2. Security Groups ---
+# ------------------------
+# SECURITY GROUPS
+# ------------------------
   ALBSG:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: Allow HTTP to ALB
+      GroupDescription: ALB SG
       VpcId: !Ref VPC
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 80
           ToPort: 80
           CidrIp: 0.0.0.0/0
-        - IpProtocol: ssh
-          FromPort: 23
-          ToPort: 23
-          CidrIp: 0.0.0.0/0
+  EC2SG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: ALB SG
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
         - IpProtocol: ssh
           FromPort: 22
           ToPort: 22
           CidrIp: 0.0.0.0/0
-
+        - IpProtocol: ssh
+          FromPort: 23
+          ToPort: 23
+          CidrIp: 0.0.0.0/0
   ECSSG:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: Allow traffic from ALB to ECS
+      GroupDescription: ECS SG
       VpcId: !Ref VPC
       SecurityGroupIngress:
         - IpProtocol: tcp
@@ -98,7 +107,75 @@ Resources:
           ToPort: 3001
           SourceSecurityGroupId: !Ref ALBSG
 
-  # --- 3. Load Balancer ---
+# ------------------------
+# ECR
+# ------------------------
+  ECRRepo:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: carbon-backend
+
+# ------------------------
+# EC2 BUILD SERVER
+# ------------------------
+  EC2BuildInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t2.micro
+      ImageId: ami-0e86e20dae9224db8
+      SubnetId: !Ref PublicSubnet1
+      SecurityGroupIds:
+        - !Ref ALBSG
+      IamInstanceProfile: LabInstanceProfile
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          yum update -y
+          amazon-linux-extras install docker -y
+          service docker start
+          usermod -a -G docker ec2-user
+          yum install -y aws-cli
+
+          mkdir app && cd app
+
+          cat <<EOF > server.js
+          const express = require("express");
+          const app = express();
+          app.get("/", (req,res)=>res.send("Carbon API running 🚀"));
+          app.listen(3001, ()=>console.log("Running"));
+          EOF
+
+          cat <<EOF > package.json
+          {
+            "name": "carbon",
+            "version": "1.0.0",
+            "main": "server.js",
+            "dependencies": {
+              "express": "^4.18.2"
+            }
+          }
+          EOF
+
+          cat <<EOF > Dockerfile
+          FROM node:18
+          WORKDIR /app
+          COPY package*.json ./
+          RUN npm install
+          COPY . .
+          EXPOSE 3001
+          CMD ["node","server.js"]
+          EOF
+
+          aws ecr get-login-password --region ${AWS::Region} \
+          | docker login --username AWS --password-stdin ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com
+
+          docker build -t carbon-backend .
+          docker tag carbon-backend:latest ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/carbon-backend:latest
+          docker push ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/carbon-backend:latest
+
+# ------------------------
+# ALB
+# ------------------------
   ALB:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
     Properties:
@@ -111,11 +188,10 @@ Resources:
   TG:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
-      VpcId: !Ref VPC
       Port: 3001
       Protocol: HTTP
+      VpcId: !Ref VPC
       TargetType: ip
-      HealthCheckPath: /
 
   Listener:
     Type: AWS::ElasticLoadBalancingV2::Listener
@@ -127,66 +203,58 @@ Resources:
         - Type: forward
           TargetGroupArn: !Ref TG
 
-  # --- 4. ECS & Monitoring ---
+# ------------------------
+# ECS
+# ------------------------
   Cluster:
     Type: AWS::ECS::Cluster
 
-  # THIS FIXED THE LOGGER ERROR
-  CloudWatchLogGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName: /ecs/carbon
-      RetentionInDays: 7
-
-  # THIS FIXED THE NULL/INDENTATION ERROR
   Task:
     Type: AWS::ECS::TaskDefinition
     Properties:
-      Cpu: '256'
-      Memory: '512'
+      Cpu: 256
+      Memory: 512
       NetworkMode: awsvpc
-      RequiresCompatibilities:
-        - FARGATE
-      ExecutionRoleArn: !Sub "arn:aws:iam::${AWS::AccountId}:role/LabRole"
+      RequiresCompatibilities: [FARGATE]
+      ExecutionRoleArn: arn:aws:iam::YOUR-ACCOUNT-ID:role/LabRole
       ContainerDefinitions:
         - Name: backend
-          Image: !Ref BackendImage
+          Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/carbon-backend:latest"
+          PortMappings:
+            - ContainerPort: 3001
           LogConfiguration:
             LogDriver: awslogs
             Options:
               awslogs-group: /ecs/carbon
               awslogs-region: !Ref AWS::Region
               awslogs-stream-prefix: ecs
-          PortMappings:
-            - ContainerPort: 3001
 
   Service:
     Type: AWS::ECS::Service
-    DependsOn: Listener
+    DependsOn:
+      - Listener
+      - EC2BuildInstance
     Properties:
       Cluster: !Ref Cluster
       LaunchType: FARGATE
-      TaskDefinition: !Ref Task
       DesiredCount: 1
+      TaskDefinition: !Ref Task
       NetworkConfiguration:
         AwsvpcConfiguration:
-          AssignPublicIp: ENABLED
           Subnets:
             - !Ref PublicSubnet1
             - !Ref PublicSubnet2
           SecurityGroups:
             - !Ref ECSSG
+          AssignPublicIp: ENABLED
       LoadBalancers:
         - ContainerName: backend
           ContainerPort: 3001
           TargetGroupArn: !Ref TG
 
-  ECRRepo:
-    Type: AWS::ECR::Repository
-    Properties:
-      RepositoryName: carbon-repo
-
+# ------------------------
+# OUTPUT
+# ------------------------
 Outputs:
-  ExternalUrl:
-    Description: URL of the website
-    Value: !Sub "http://${ALB.DNSName}"
+  URL:
+    Value: !GetAtt ALB.DNSName
