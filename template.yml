@@ -194,31 +194,28 @@ Resources:
       DefaultActions:
         - Type: forward
           TargetGroupArn: !Ref TG
-
 # Service
   Service:
-  Type: AWS::ECS::Service
-  DependsOn:
-    - Listener
-    - EC2BuildInstance 
-  Properties:
-    Cluster: !Ref Cluster
-    LaunchType: FARGATE
-     TaskDefinition: !Ref Task
-     DesiredCount: 1
-    NetworkConfiguration:
-      AwsvpcConfiguration:
-        Subnets:
-           - !Ref PublicSubnet1
-           - !Ref PublicSubnet2
-         SecurityGroups:
-          - !Ref ECSSG
-         AssignPublicIp: ENABLED
-     LoadBalancers:
-      - ContainerName: backend
-        ContainerPort: 3001
-         TargetGroupArn: !Ref TG
-
+    Type: AWS::ECS::Service
+    DependsOn:
+      - Listener
+    Properties:
+      Cluster: !Ref Cluster
+      LaunchType: FARGATE
+      TaskDefinition: !Ref Task
+      DesiredCount: 1
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: ENABLED
+          Subnets:
+            - !Ref PublicSubnet1
+            - !Ref PublicSubnet2
+          SecurityGroups:
+            - !Ref ECSSG
+      LoadBalancers:
+        - ContainerName: backend
+          ContainerPort: 3001
+          TargetGroupArn: !Ref TG
   Task:
     Type: AWS::ECS::TaskDefinition
     Properties:
