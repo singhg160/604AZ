@@ -242,7 +242,7 @@ Resources:
           PortMappings:
             - ContainerPort: 3001
 
-    ECRRepo:
+   
   # --- ECR Repository (Fixed Indentation) ---
   ECRRepo:
     Type: AWS::ECR::Repository
