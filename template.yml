@@ -232,13 +232,7 @@ Resources:
       ExecutionRoleArn: !Sub "arn:aws:iam::${AWS::AccountId}:role/LabRole" # Dynamic ID is safer
       ContainerDefinitions:
         - Name: backend
-          Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/carbon-backend:latest"
-          LogConfiguration:
-             LogDriver: awslogs
-             Options:
-               awslogs-group: /ecs/carbon
-               awslogs-region: !Ref AWS::Region
-               awslogs-stream-prefix: ecs
+          Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/carbon-backend:latest
           PortMappings:
             - ContainerPort: 3001
 
