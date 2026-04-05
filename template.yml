@@ -239,11 +239,6 @@ Resources:
                awslogs-group: /ecs/carbon
                awslogs-region: !Ref AWS::Region
                awslogs-stream-prefix: ecs
-            LogDriver: awslogs
-            Options:
-              awslogs-group: /ecs/carbon
-              awslogs-region: !Ref AWS::Region
-              awslogs-stream-prefix: ecs
           PortMappings:
             - ContainerPort: 3001
 
