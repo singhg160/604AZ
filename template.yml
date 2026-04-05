@@ -1,6 +1,11 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: Carbon App Full Stack (Auto Build + ECS)
+Parameters:
+  StudentNumber:
+    Type: String
 
+  BackendImage:
+    Type: String
 Resources:
 
 # ------------------------
@@ -216,7 +221,7 @@ Resources:
       Memory: 512
       NetworkMode: awsvpc
       RequiresCompatibilities: [FARGATE]
-      ExecutionRoleArn: arn:aws:iam::YOUR-ACCOUNT-ID:role/LabRole
+      ExecutionRoleArn: arn:aws:iam::891377043411:role/LabRole
       ContainerDefinitions:
         - Name: backend
           Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/carbon-backend:latest"
