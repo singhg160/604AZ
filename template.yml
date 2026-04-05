@@ -242,8 +242,7 @@ Resources:
     Type: AWS::ECR::Repository
     Properties:
       RepositoryName: carbon-backend
-      RepositoryName: carbon-repo # "deploy" is a bit vague, changed for clarity
-      
+
   # RDS SG
   RDSSG:
     Type: AWS::EC2::SecurityGroup
