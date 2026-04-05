@@ -232,7 +232,7 @@ Resources:
       ExecutionRoleArn: !Sub "arn:aws:iam::${AWS::AccountId}:role/LabRole" # Dynamic ID is safer
       ContainerDefinitions:
         - Name: backend
-          Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/carbon-backend:latest
+          Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/carbon-backend:latest"
           LogConfiguration:
              LogDriver: awslogs
              Options:
@@ -242,12 +242,14 @@ Resources:
           PortMappings:
             - ContainerPort: 3001
 
+    ECRRepo:
    
   # --- ECR Repository (Fixed Indentation) ---
   ECRRepo:
     Type: AWS::ECR::Repository
     Properties:
       RepositoryName: carbon-backend
+      RepositoryName: carbon-repo # "deploy" is a bit vague, changed for clarity
 
   # RDS SG
   RDSSG:
@@ -297,7 +299,7 @@ Resources:
     Type: AWS::Cognito::UserPoolClient
     Properties:
       UserPoolId: !Ref UserPool
-      
-  Outputs:
+
+Outputs:
   URL:
     Value: !GetAtt ALB.DNSName
