@@ -1,5 +1,6 @@
+@@ -1,298 +1,298 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: Carbon App Full Stack (Auto Build + ECS)
+Description: Step 1 - VPC + ALB
 Parameters:
   StudentNumber:
     Type: String
@@ -8,19 +9,14 @@ Parameters:
     Type: String
 Resources:
 
-# ------------------------
 # VPC
-# ------------------------
   VPC:
     Type: AWS::EC2::VPC
     Properties:
       CidrBlock: 10.0.0.0/16
-      EnableDnsSupport: true
-      EnableDnsHostnames: true
+      #gg
 
-# ------------------------
-# SUBNETS
-# ------------------------
+# Subnets
   PublicSubnet1:
     Type: AWS::EC2::Subnet
     Properties:
@@ -37,9 +33,7 @@ Resources:
       MapPublicIpOnLaunch: true
       AvailabilityZone: us-east-1b
 
-# ------------------------
-# INTERNET + ROUTING
-# ------------------------
+# Internet
   IGW:
     Type: AWS::EC2::InternetGateway
 
@@ -49,6 +43,7 @@ Resources:
       VpcId: !Ref VPC
       InternetGatewayId: !Ref IGW
 
+# Routing
   RT:
     Type: AWS::EC2::RouteTable
     Properties:
@@ -74,9 +69,7 @@ Resources:
       SubnetId: !Ref PublicSubnet2
       RouteTableId: !Ref RT
 
-# ------------------------
-# SECURITY GROUPS
-# ------------------------
+# Security Group
   ALBSG:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -87,42 +80,19 @@ Resources:
           FromPort: 80
           ToPort: 80
           CidrIp: 0.0.0.0/0
+
   EC2SG:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: ALB SG
+      GroupDescription: EC2 SG
       VpcId: !Ref VPC
       SecurityGroupIngress:
-        - IpProtocol: ssh
+        - IpProtocol: SSH
           FromPort: 22
           ToPort: 22
           CidrIp: 0.0.0.0/0
-        - IpProtocol: ssh
-          FromPort: 23
-          ToPort: 23
-          CidrIp: 0.0.0.0/0
-  ECSSG:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupDescription: ECS SG
-      VpcId: !Ref VPC
-      SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 3001
-          ToPort: 3001
-          SourceSecurityGroupId: !Ref ALBSG
 
-# ------------------------
-# ECR
-# ------------------------
-  ECRRepo:
-    Type: AWS::ECR::Repository
-    Properties:
-      RepositoryName: carbon-backend
 
-# ------------------------
-# EC2 BUILD SERVER
-# ------------------------
   EC2BuildInstance:
     Type: AWS::EC2::Instance
     Properties:
@@ -130,7 +100,7 @@ Resources:
       ImageId: ami-0e86e20dae9224db8
       SubnetId: !Ref PublicSubnet1
       SecurityGroupIds:
-        - !Ref ALBSG
+        - !Ref EC2SG
       IamInstanceProfile: LabInstanceProfile
       UserData:
         Fn::Base64: !Sub |
@@ -139,17 +109,23 @@ Resources:
           amazon-linux-extras install docker -y
           service docker start
           usermod -a -G docker ec2-user
+
+          # install aws cli (if not present)
           yum install -y aws-cli
 
-          mkdir app && cd app
+          # create app
+          mkdir app
+          cd app
 
+          # server.js
           cat <<EOF > server.js
           const express = require("express");
           const app = express();
-          app.get("/", (req,res)=>res.send("Carbon API running 🚀"));
-          app.listen(3001, ()=>console.log("Running"));
+          app.get("/", (req, res) => res.send("Carbon API running 🚀"));
+          app.listen(3001, () => console.log("Running"));
           EOF
 
+          # package.json
           cat <<EOF > package.json
           {
             "name": "carbon",
@@ -161,6 +137,7 @@ Resources:
           }
           EOF
 
+          # Dockerfile
           cat <<EOF > Dockerfile
           FROM node:18
           WORKDIR /app
@@ -171,16 +148,20 @@ Resources:
           CMD ["node","server.js"]
           EOF
 
+          # login to ECR
           aws ecr get-login-password --region ${AWS::Region} \
           | docker login --username AWS --password-stdin ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com
 
+          # build image
           docker build -t carbon-backend .
+
+          # tag image
           docker tag carbon-backend:latest ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/carbon-backend:latest
+
+          # push image
           docker push ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/carbon-backend:latest
 
-# ------------------------
-# ALB
-# ------------------------
+# Load Balancer
   ALB:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
     Properties:
@@ -190,6 +171,24 @@ Resources:
       SecurityGroups:
         - !Ref ALBSG
 
+
+# ECS Cluster
+  Cluster:
+    Type: AWS::ECS::Cluster
+
+# ECS SG
+  ECSSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: ECS SG
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 3001
+          ToPort: 3001
+          SourceSecurityGroupId: !Ref ALBSG
+
+# Target Group
   TG:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
@@ -198,6 +197,7 @@ Resources:
       VpcId: !Ref VPC
       TargetType: ip
 
+# Listener
   Listener:
     Type: AWS::ElasticLoadBalancingV2::Listener
     Properties:
@@ -208,42 +208,17 @@ Resources:
         - Type: forward
           TargetGroupArn: !Ref TG
 
-# ------------------------
-# ECS
-# ------------------------
-  Cluster:
-    Type: AWS::ECS::Cluster
-
-  Task:
-    Type: AWS::ECS::TaskDefinition
-    Properties:
-      Cpu: 256
-      Memory: 512
-      NetworkMode: awsvpc
-      RequiresCompatibilities: [FARGATE]
-      ExecutionRoleArn: arn:aws:iam::891377043411:role/LabRole
-      ContainerDefinitions:
-        - Name: backend
-          Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/carbon-backend:latest"
-          PortMappings:
-            - ContainerPort: 3001
-          LogConfiguration:
-            LogDriver: awslogs
-            Options:
-              awslogs-group: /ecs/carbon
-              awslogs-region: !Ref AWS::Region
-              awslogs-stream-prefix: ecs
-
+# Service
   Service:
-    Type: AWS::ECS::Service
-    DependsOn:
-      - Listener
-      - EC2BuildInstance
-    Properties:
+  Type: AWS::ECS::Service
+  DependsOn:
+    - Listener
+    - EC2BuildInstance 
+  Properties:
       Cluster: !Ref Cluster
       LaunchType: FARGATE
-      DesiredCount: 1
       TaskDefinition: !Ref Task
+      DesiredCount: 1
       NetworkConfiguration:
         AwsvpcConfiguration:
           Subnets:
@@ -257,9 +232,80 @@ Resources:
           ContainerPort: 3001
           TargetGroupArn: !Ref TG
 
-# ------------------------
-# OUTPUT
-# ------------------------
+  Task:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Cpu: 256
+      Memory: 512
+      NetworkMode: awsvpc
+      RequiresCompatibilities: [FARGATE]
+      ExecutionRoleArn: arn:aws:iam::891377043411:role/LabRole
+      ContainerDefinitions:
+        - Name: backend
+          Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/carbon-backend:latest"
+          LogConfiguration:
+             LogDriver: awslogs
+             Options:
+               awslogs-group: /ecs/carbon
+               awslogs-region: !Ref AWS::Region
+               awslogs-stream-prefix: ecs
+          PortMappings:
+            - ContainerPort: 3001
+
+    ECRRepo:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: carbon-backend
+
+  # RDS SG
+  RDSSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: RDS SG
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 5432
+          ToPort: 5432
+          SourceSecurityGroupId: !Ref ECSSG
+
+# Private Subnets
+  PrivateSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.0.3.0/24
+      AvailabilityZone: us-east-1a
+
+  PrivateSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.0.4.0/24
+      AvailabilityZone: us-east-1b
+
+# DB Subnet
+  DBSubnet:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: RDS
+      SubnetIds:
+        - !Ref PrivateSubnet1
+        - !Ref PrivateSubnet2
+
+
+
+  Bucket:
+    Type: AWS::S3::Bucket
+
+  UserPool:
+    Type: AWS::Cognito::UserPool
+
+  Client:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId: !Ref UserPool
+
 Outputs:
   URL:
     Value: !GetAtt ALB.DNSName
