@@ -233,6 +233,12 @@ Resources:
       ContainerDefinitions:
         - Name: backend
           Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/carbon-backend:latest
+          LogConfiguration:
+             LogDriver: awslogs
+             Options:
+               awslogs-group: /ecs/carbon
+               awslogs-region: !Ref AWS::Region
+               awslogs-stream-prefix: ecs
           PortMappings:
             - ContainerPort: 3001
 
