@@ -201,7 +201,7 @@ Resources:
   DependsOn:
     - Listener
     - EC2BuildInstance 
-    Properties:
+  Properties:
       Cluster: !Ref Cluster
       LaunchType: FARGATE
       TaskDefinition: !Ref Task
