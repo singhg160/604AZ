@@ -1,4 +1,4 @@
-@@ -1,298 +1,298 @@
+
 AWSTemplateFormatVersion: '2010-09-09'
 Description: Step 1 - VPC + ALB
 Parameters:
