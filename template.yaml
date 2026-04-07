@@ -203,7 +203,7 @@ Resources:
       DBInstanceClass: db.t3.micro # Cheapest tier
       AllocatedStorage: '20'
       MasterUsername: postgres
-      MasterUserPassword: "YourSecurePassword123" # Change this!
+      MasterUserPassword: "Gurkirat123!" # Change this!
       VPCSecurityGroups: 
         - !Ref DBSecurityGroup
       DBSubnetGroupName: !Ref PrivateSubnetGroup
