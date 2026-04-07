@@ -1,5 +1,4 @@
-name: Full AWS Deploy (ECR + CloudFormation)
-
+name: AWS Deploy Stack
 on:
   push:
     branches: [ main ]
@@ -7,17 +6,10 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
     steps:
-      # ------------------------
-      # 1. Checkout Code
-      # ------------------------
       - name: Checkout Code
         uses: actions/checkout@v3
 
-      # ------------------------
-      # 2. Configure AWS
-      # ------------------------
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
@@ -26,44 +18,13 @@ jobs:
           aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
           aws-region: us-east-1
 
-      # ------------------------
-      # 3. Login to ECR
-      # ------------------------
-      - name: Login to ECR
-        run: |
-          aws ecr get-login-password --region us-east-1 \
-          | docker login --username AWS --password-stdin \
-          $ 891377043411.dkr.ecr.us-east-1.amazonaws.com
-
-      # ------------------------
-      # 4. Build Docker Image
-      # ------------------------
-      - name: Build Docker Image
-        run: docker build -t carbon-backend .
-
-      # ------------------------
-      # 5. Tag Docker Image
-      # ------------------------
-      - name: Tag Docker Image
-        run: |
-          docker tag carbon-backend:latest \
-          ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com/carbon-backend:latest
-
-      # ------------------------
-      # 6. Push to ECR
-      # ------------------------
-      - name: Push Docker Image
-        run: |
-          docker push \
-          ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com/carbon-backend:latest
-
-      # ------------------------
-      # 7. Deploy CloudFormation
-      # ------------------------
-      - name: Deploy CloudFormation Stack
+      - name: Deploy to CloudFormation
         uses: aws-actions/aws-cloudformation-github-deploy@v1
         with:
           name: CarbonFootprintStack
           template: template.yml
+          no-fail-on-empty-changeset: "1" # FIXES THE 255 ERROR
           capabilities: CAPABILITY_NAMED_IAM
-          no-fail-on-empty-changeset: "1"
+          parameter-overrides: >-
+            StudentNumber=${{ secrets.STUDENT_ID }},
+            BackendImage=public.ecr.aws/docker/library/node:latest
