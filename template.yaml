@@ -210,7 +210,7 @@ Resources:
       PubliclyAccessible: false
       DeleteAutomatedBackups: true
       BackupRetentionPeriod: 0
-      TerminationProtection: false
+      
 
   # 3. Security Group for Database (Allows ECS to talk to RDS)
   DBSecurityGroup:
