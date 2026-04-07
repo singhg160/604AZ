@@ -1,4 +1,5 @@
-name: AWS Deploy Stack
+name: Docker Build and Deploy
+
 on:
   push:
     branches: [ main ]
@@ -14,17 +15,30 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v2
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
           aws-region: us-east-1
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Build and Push Docker Image
+        env:
+          REGISTRY: ${{ steps.login-ecr.registry }}
+          REPO: carbon-backend
+        run: |
+          # Build for linux/amd64 so it works on AWS Fargate
+          docker build --platform linux/amd64 -t $REGISTRY/$REPO:latest .
+          docker push $REGISTRY/$REPO:latest
 
       - name: Deploy to CloudFormation
         uses: aws-actions/aws-cloudformation-github-deploy@v1
         with:
           name: CarbonFootprintStack
-          template: template.yml
-          no-fail-on-empty-changeset: "1" # FIXES THE 255 ERROR
+          template: template.yaml
+          no-fail-on-empty-changeset: "1"
           capabilities: CAPABILITY_NAMED_IAM
           parameter-overrides: >-
             StudentNumber=${{ secrets.STUDENT_ID }},
-            BackendImage=public.ecr.aws/docker/library/node:latest
+            BackendImage=${{ steps.login-ecr.registry }}/carbon-backend:latest
