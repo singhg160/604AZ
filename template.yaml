@@ -222,7 +222,7 @@ Resources:
         - IpProtocol: tcp
           FromPort: 5432
           ToPort: 5432
-          SourceSecurityGroupId: !Ref ContainerSecurityGroup # Assuming this is your ECS SG name
+          SourceSecurityGroupId: !Ref ECSSG # Assuming this is your ECS SG name
 
   # 4. DB Subnet Group (RDS needs at least 2 subnets)
   PrivateSubnetGroup:
