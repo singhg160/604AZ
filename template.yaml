@@ -182,6 +182,18 @@ Resources:
           PortMappings:
             - ContainerPort: 3001
             
+  # 1. S3 Bucket for File Storage
+  CarbonStorageBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "carbon-storage-${AWS::AccountId}-${AWS::Region}" # Unique name
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  # 2. RDS PostgreSQL Database
   CarbonDatabase:
     Type: AWS::RDS::DBInstance
     Properties:
@@ -200,17 +212,26 @@ Resources:
       BackupRetentionPeriod: 0
       TerminationProtection: false
 
-  # RDS SG
-  RDSSG:
+  # 3. Security Group for Database (Allows ECS to talk to RDS)
+  DBSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: RDS SG
+      GroupDescription: Allow Port 5432 from ECS Tasks
       VpcId: !Ref VPC
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 5432
           ToPort: 5432
-          SourceSecurityGroupId: !Ref ECSSG
+          SourceSecurityGroupId: !Ref ContainerSecurityGroup # Assuming this is your ECS SG name
+
+  # 4. DB Subnet Group (RDS needs at least 2 subnets)
+  PrivateSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: Subnets for RDS
+      SubnetIds: 
+        - !Ref PrivateSubnet1 # Replace with your actual Subnet logical IDs
+        - !Ref PrivateSubnet2
 
 # Private Subnets
   PrivateSubnet1:
@@ -226,20 +247,6 @@ Resources:
       VpcId: !Ref VPC
       CidrBlock: 10.0.4.0/24
       AvailabilityZone: us-east-1b
-
-# DB Subnet
-  DBSubnet:
-    Type: AWS::RDS::DBSubnetGroup
-    Properties:
-      DBSubnetGroupDescription: RDS
-      SubnetIds:
-        - !Ref PrivateSubnet1
-        - !Ref PrivateSubnet2
-
-
-
-  Bucket:
-    Type: AWS::S3::Bucket
 
   UserPool:
     Type: AWS::Cognito::UserPool
