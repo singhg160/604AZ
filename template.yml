@@ -80,73 +80,7 @@ Resources:
           ToPort: 80
           CidrIp: 0.0.0.0/0
 
-  EC2BuildInstance:
-    Type: AWS::EC2::Instance
-    Properties:
-      InstanceType: t2.micro
-      ImageId: ami-0e86e20dae9224db8
-      SubnetId: !Ref PublicSubnet1
-      SecurityGroupIds:
-        - !Ref ALBSG
-      IamInstanceProfile: LabInstanceProfile
-      UserData:
-        Fn::Base64: !Sub |
-          #!/bin/bash
-          yum update -y
-          amazon-linux-extras install docker -y
-          service docker start
-          usermod -a -G docker ec2-user
 
-          # install aws cli (if not present)
-          yum install -y aws-cli
-
-          # create app
-          mkdir app
-          cd app
-
-          # server.js
-          cat <<EOF > server.js
-          const express = require("express");
-          const app = express();
-          app.get("/", (req, res) => res.send("Carbon API running 🚀"));
-          app.listen(3001, () => console.log("Running"));
-          EOF
-
-          # package.json
-          cat <<EOF > package.json
-          {
-            "name": "carbon",
-            "version": "1.0.0",
-            "main": "server.js",
-            "dependencies": {
-              "express": "^4.18.2"
-            }
-          }
-          EOF
-
-          # Dockerfile
-          cat <<EOF > Dockerfile
-          FROM node:18
-          WORKDIR /app
-          COPY package*.json ./
-          RUN npm install
-          COPY . .
-          EXPOSE 3001
-          CMD ["node","server.js"]
-          EOF
-
-          # login to ECR
-          aws ecr get-login-password --region ${AWS::Region} \
-          | docker login --username AWS --password-stdin ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com
-
-          # build image
-          docker build -t carbon-backend .
-
-          # tag image
-          docker tag carbon-backend:latest ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/carbon-backend:latest
-
-          # push image
-          docker push ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/carbon-backend:latest
 
 # Load Balancer
   ALB:
@@ -238,7 +172,7 @@ Resources:
       ExecutionRoleArn: !Sub "arn:aws:iam::${AWS::AccountId}:role/LabRole" # Dynamic ID is safer
       ContainerDefinitions:
         - Name: backend
-          Image: public.ecr.aws/docker/library/node:latest
+          Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/carbon-backend:latest"
           LogConfiguration:
              LogDriver: awslogs
              Options:
