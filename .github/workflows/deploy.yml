@@ -20,17 +20,19 @@ jobs:
           aws-region: us-east-1
 
       - name: Login to Amazon ECR
-        id: login-ecr
+        id: login-ecr  # <--- THIS ID MUST MATCH THE ONE BELOW
         uses: aws-actions/amazon-ecr-login@v1
 
-      - name: Build and Push Docker Image
+      - name: Build, tag, and push image to Amazon ECR
         env:
-          REGISTRY: ${{ steps.login-ecr.registry }}
+          # This line was likely missing the ".outputs" part or the ID didn't match
+          REGISTRY: ${{ steps.login-ecr.outputs.registry }} 
           REPO: carbon-backend
+          IMAGE_TAG: latest
         run: |
-          # Build for linux/amd64 so it works on AWS Fargate
-          docker build --platform linux/amd64 -t $REGISTRY/$REPO:latest .
-          docker push $REGISTRY/$REPO:latest
+          # Now $REGISTRY will look like: 891377043411.dkr.ecr.us-east-1.amazonaws.com
+          docker build --platform linux/amd64 -t $REGISTRY/$REPO:$IMAGE_TAG .
+          docker push $REGISTRY/$REPO:$IMAGE_TAG
 
       - name: Deploy to CloudFormation
         uses: aws-actions/aws-cloudformation-github-deploy@v1
