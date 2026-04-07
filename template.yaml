@@ -182,7 +182,23 @@ Resources:
           PortMappings:
             - ContainerPort: 3001
             
-
+  CarbonDatabase:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBName: carbondb
+      Engine: postgres
+      EngineVersion: '15' # Modern stable version
+      DBInstanceClass: db.t3.micro # Cheapest tier
+      AllocatedStorage: '20'
+      MasterUsername: postgres
+      MasterUserPassword: "YourSecurePassword123" # Change this!
+      VPCSecurityGroups: 
+        - !Ref DBSecurityGroup
+      DBSubnetGroupName: !Ref PrivateSubnetGroup
+      PubliclyAccessible: false
+      DeleteAutomatedBackups: true
+      BackupRetentionPeriod: 0
+      TerminationProtection: false
 
   # RDS SG
   RDSSG:
