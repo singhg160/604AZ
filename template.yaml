@@ -1,8 +1,8 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: Step 1 - VPC + ALB
+Description: full cloud
 Parameters:
   StudentNumber:
-    Type: String
+    Type: String 
 
   BackendImage:
     Type: String
