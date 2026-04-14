@@ -4,7 +4,7 @@ const { Pool } = require("pg");
 
 const app = express();
 app.use(cors());
-app.use(express.json());
+app.use(express.json()); 
 
 // 🔹 DB readiness flag
 let isDbReady = false;
