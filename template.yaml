@@ -11,7 +11,15 @@ Resources:
 # VPC
   VPC:
     Type: AWS::EC2::VPC
-    Properties:
+  Properties:
+  CidrBlock: String
+  EnableDnsHostnames: Boolean
+  EnableDnsSupport: Boolean
+  InstanceTenancy: String
+  Ipv4IpamPoolId: String
+  Ipv4NetmaskLength: Integer
+  Tags: 
+    - Tag
       CidrBlock: 10.0.0.0/16
       #gg
 
