@@ -8,9 +8,9 @@ app.use(express.json());
 
 // 🔹 Create DB pool (uses ECS env variables)
 const pool = new Pool({
-  host: process.env.DB_HOST,
+  host: process.env.DB_HOST || "invalid", 
   user: process.env.DB_USER || "postgres",
-  password: process.env.DB_PASSWORD || "Gurkirat123!,
+  password: process.env.DB_PASSWORD || "Gurkirat123!",
   database: process.env.DB_NAME || "carbondb",
   port: 5432,
 });
