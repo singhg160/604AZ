@@ -179,15 +179,6 @@ Resources:
                awslogs-group: /ecs/carbon
                awslogs-region: !Ref AWS::Region
                awslogs-stream-prefix: ecs
-          Environment:
-            - Name: DB_HOST
-              Value: !GetAtt CarbonDatabase.Endpoint.Address
-            - Name: DB_NAME
-              Value: "carbondb"
-            - Name: DB_USER
-              Value: "postgres"
-            - Name: DB_PASSWORD
-              Value: "Gurkirat123!"
           PortMappings:
             - ContainerPort: 3001
             
