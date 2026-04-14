@@ -207,7 +207,7 @@ Resources:
       VPCSecurityGroups: 
         - !Ref DBSecurityGroup
       DBSubnetGroupName: !Ref PrivateSubnetGroup
-      PubliclyAccessible: false
+      PubliclyAccessible: true
       DeleteAutomatedBackups: true
       BackupRetentionPeriod: 0
       
