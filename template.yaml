@@ -137,6 +137,7 @@ Resources:
     Type: AWS::ECS::Service
     DependsOn:
       - Listener
+      - CarbonDatabase
     Properties:
       Cluster: !Ref Cluster
       LaunchType: FARGATE
@@ -177,6 +178,15 @@ Resources:
       ContainerDefinitions:
         - Name: backend
           Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/carbon-backend:latest"
+          Environment:
+            - Name: DB_HOST
+             Value: !GetAtt CarbonDatabase.Endpoint.Address
+            - Name: DB_USER
+             Value: "postgres"
+            - Name: DB_PASSWORD
+             Value: "Gurkirat123!"
+            - Name: DB_NAME
+             Value: "carbondb"
           LogConfiguration:
              LogDriver: awslogs
              Options:
