@@ -18,9 +18,9 @@ Resources:
       InstanceTenancy: String
       Ipv4IpamPoolId: String
       Ipv4NetmaskLength: Integer
-    Tags: 
+      Tags: 
       - Tag
-    CidrBlock: 10.0.0.0/16
+      CidrBlock: 10.0.0.0/16
       #gg
 
 # Subnets
