@@ -8,32 +8,12 @@ app.use(express.json());
 
 const pool = new Pool({
   host: process.env.DB_HOST,  
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME,
+  user: postgres,
+  password: Gurkirat123!,
+  database: carbondb,
   port: 5432,
 });
 
-// ✅ TABLE AUTO-CREATION (The "Table Thing")
-const initDb = async () => {
-  try {
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS emissions (
-        id SERIAL PRIMARY KEY,
-        vehicle_make VARCHAR(100),
-        vehicle_model VARCHAR(100),
-        vehicle_year INT,
-        distance_km FLOAT,
-        emission_kg FLOAT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
-    console.log("✅ Database Table Ready");
-  } catch (err) {
-    console.error("❌ DB connection failed:", err.message);
-    // ❗ DO NOT crash app
-  }
-};
 
 // ✅ Health Check for ALB (Root path)
 app.get("/", (req, res) => {
