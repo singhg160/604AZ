@@ -16,6 +16,9 @@ const pool = new Pool({
   password: process.env.DB_PASSWORD || "Gurkirat123!",
   database: process.env.DB_NAME || "carbondb",
   port: 5432,
+  ssl: {
+  rejectUnauthorized: false
+}
 });
 
 // 🔥 Wait for DB (RETRY LOGIC)
