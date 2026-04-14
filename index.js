@@ -6,23 +6,27 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// 🔹 Create DB pool (uses ECS env variables)
+// 🔹 DB readiness flag
+let isDbReady = false;
+
+// 🔹 Create DB pool
 const pool = new Pool({
-  host: process.env.DB_HOST || "invalid", 
+  host: process.env.DB_HOST || "invalid",
   user: process.env.DB_USER || "postgres",
   password: process.env.DB_PASSWORD || "Gurkirat123!",
   database: process.env.DB_NAME || "carbondb",
   port: 5432,
 });
 
-// 🔥 Wait for DB to be ready (VERY IMPORTANT)
+// 🔥 Wait for DB (RETRY LOGIC)
 const waitForDb = async () => {
   while (true) {
     try {
-      await pool.query("SELECT 1");
-      console.log("✅ Connected to DB");
+      console.log("⏳ Trying to connect to DB...");
 
-      // Create table after connection
+      await pool.query("SELECT 1");
+
+      // Create table
       await pool.query(`
         CREATE TABLE IF NOT EXISTS emissions (
           id SERIAL PRIMARY KEY,
@@ -35,17 +39,18 @@ const waitForDb = async () => {
         );
       `);
 
-      console.log("✅ Table ready");
+      console.log("✅ DB connected & table ready");
+      isDbReady = true;
       break;
 
     } catch (err) {
-      console.log("⏳ Waiting for DB...", err.message);
+      console.log("❌ DB not ready:", err.message);
       await new Promise(res => setTimeout(res, 5000));
     }
   }
 };
 
-// Run DB connection in background (DO NOT BLOCK APP)
+// Run in background
 waitForDb();
 
 // ✅ Health check (ALB uses this)
@@ -57,8 +62,15 @@ app.get("/health", (req, res) => {
   res.sendStatus(200);
 });
 
-// 🔥 Save data (safe DB usage)
+// 🔥 Save data
 app.post("/carbon", async (req, res) => {
+  // 🚨 Prevent crashes when DB not ready
+  if (!isDbReady) {
+    return res.status(503).json({
+      error: "Database is still starting, please try again in a few seconds"
+    });
+  }
+
   try {
     const {
       vehicle_make,
@@ -85,16 +97,17 @@ app.post("/carbon", async (req, res) => {
     res.json({
       emission_id: result.rows[0].id,
       vehicle_make: result.rows[0].vehicle_make,
+      vehicle_model: result.rows[0].vehicle_model,
       emission_kg: result.rows[0].emission_kg
     });
 
   } catch (err) {
     console.error("❌ DB ERROR:", err.message);
-    res.status(500).json({ error: "Database not ready" });
+    res.status(500).json({ error: err.message });
   }
 });
 
-// 🚀 Start server (CRITICAL for ECS)
+// 🚀 Start server (REQUIRED for ECS)
 app.listen(3001, "0.0.0.0", () => {
   console.log("🚀 Server running on port 3001");
 });
