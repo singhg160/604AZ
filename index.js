@@ -6,14 +6,6 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-const pool = new Pool({
-  host: process.env.DB_HOST,  
-  user: postgres,
-  password: Gurkirat123!,
-  database: carbondb,
-  port: 5432,
-});
-
 
 // ✅ Health Check for ALB (Root path)
 app.get("/", (req, res) => {
