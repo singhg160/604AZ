@@ -16,26 +16,24 @@ const pool = new Pool({
 
 // ✅ TABLE AUTO-CREATION (The "Table Thing")
 const initDb = async () => {
-  const queryText = `
-    CREATE TABLE IF NOT EXISTS emissions (
-      id SERIAL PRIMARY KEY,
-      vehicle_make VARCHAR(100),
-      vehicle_model VARCHAR(100),
-      vehicle_year INT,
-      distance_km FLOAT,
-      emission_kg FLOAT,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
-  `;
   try {
-    await pool.query(queryText);
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS emissions (
+        id SERIAL PRIMARY KEY,
+        vehicle_make VARCHAR(100),
+        vehicle_model VARCHAR(100),
+        vehicle_year INT,
+        distance_km FLOAT,
+        emission_kg FLOAT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
     console.log("✅ Database Table Ready");
   } catch (err) {
-    console.error("❌ Table creation failed. Check RDS connection:", err.message);
+    console.error("❌ DB connection failed:", err.message);
+    // ❗ DO NOT crash app
   }
 };
-
-initDb();
 
 // ✅ Health Check for ALB (Root path)
 app.get("/", (req, res) => {
