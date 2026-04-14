@@ -165,34 +165,30 @@ Resources:
   Task:
     Type: AWS::ECS::TaskDefinition
     Properties:
-      Cpu: 256
-      Memory: 512
-      Cpu: '256' # Best to wrap numbers in quotes in YAML
+      Cpu: '256'
       Memory: '512'
       NetworkMode: awsvpc
-      RequiresCompatibilities: [FARGATE]
-      ExecutionRoleArn: arn:aws:iam::891377043411:role/LabRole
-      RequiresCompatibilities: 
+      RequiresCompatibilities:
         - FARGATE
-      ExecutionRoleArn: !Sub "arn:aws:iam::${AWS::AccountId}:role/LabRole" # Dynamic ID is safer
+      ExecutionRoleArn: !Sub "arn:aws:iam::${AWS::AccountId}:role/LabRole"
       ContainerDefinitions:
         - Name: backend
           Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/carbon-backend:latest"
           Environment:
             - Name: DB_HOST
-             Value: !GetAtt CarbonDatabase.Endpoint.Address
+              Value: !GetAtt CarbonDatabase.Endpoint.Address
             - Name: DB_USER
-             Value: "postgres"
+              Value: postgres
             - Name: DB_PASSWORD
-             Value: "Gurkirat123!"
+              Value: Gurkirat123!
             - Name: DB_NAME
-             Value: "carbondb"
+              Value: carbondb
           LogConfiguration:
-             LogDriver: awslogs
-             Options:
-               awslogs-group: /ecs/carbon
-               awslogs-region: !Ref AWS::Region
-               awslogs-stream-prefix: ecs
+            LogDriver: awslogs
+            Options:
+              awslogs-group: /ecs/carbon
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: ecs
           PortMappings:
             - ContainerPort: 3001
             
