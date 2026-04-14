@@ -179,7 +179,6 @@ Resources:
                awslogs-group: /ecs/carbon
                awslogs-region: !Ref AWS::Region
                awslogs-stream-prefix: ecs
-        - Name: backend
           Environment:
             - Name: DB_HOST
               Value: !GetAtt CarbonDatabase.Endpoint.Address
